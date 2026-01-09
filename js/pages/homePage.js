@@ -1,10 +1,10 @@
 /**
  * Responsabilidad: pantalla principal (mes actual).
  * - Header Mes Año + Hola usuario + hogar
- * - Botón Actualizar (refetch) y Cerrar sesión
+ * - Botón Actualizar y Cerrar sesión
  * - KPIs: Total / Pendiente / Diario restante
- * - Lista Items con toggle pagado, editar, eliminar
- * - Agregar ítem (modal)
+ * - Lista Items (gastos)
+ * - NUEVO: Lista ShoppingItems (compras con cantidades)
  */
 
 import { store } from "../state/store.js";
@@ -14,6 +14,10 @@ import { formatARSWithPrefix, parseARS } from "../utils/format.js";
 
 function badgeForPaid(isPaid) {
   return el("span", { class: `badge ${isPaid ? "paid" : "pending"}`, text: isPaid ? "Pagado" : "Pendiente" });
+}
+
+function badgeForShopping(done) {
+  return el("span", { class: `badge ${done ? "paid" : "pending"}`, text: done ? "Completo" : "Pendiente" });
 }
 
 export async function renderHomePage(root, router) {
@@ -56,6 +60,7 @@ export async function renderHomePage(root, router) {
   const kpisArea = el("div", { class: "grid cols-2" });
   const dailyArea = el("div");
   const listArea = el("div");
+  const shoppingArea = el("div");
 
   function renderHeaderInfo() {
     const sess = store.getSession();
@@ -114,6 +119,7 @@ export async function renderHomePage(root, router) {
     kpisArea.appendChild(k2);
   }
 
+  // ===== Modales de Gastos =====
   function openAddModal() {
     const nm = input({ placeholder: "Ej: Internet" });
     const amt = input({ placeholder: "Ej: 25000", inputMode: "numeric" });
@@ -138,11 +144,7 @@ export async function renderHomePage(root, router) {
       }
     });
 
-    const modal = createModal({
-      title: "Agregar ítem",
-      content,
-      onClose: () => {}
-    });
+    const modal = createModal({ title: "Agregar ítem", content, onClose: () => {} });
     modal.open();
   }
 
@@ -170,11 +172,7 @@ export async function renderHomePage(root, router) {
       }
     });
 
-    const modal = createModal({
-      title: "Editar ítem",
-      content,
-      onClose: () => {}
-    });
+    const modal = createModal({ title: "Editar ítem", content, onClose: () => {} });
     modal.open();
   }
 
@@ -208,11 +206,7 @@ export async function renderHomePage(root, router) {
         el("div", { class: "meta", text: formatARSWithPrefix(it.amount) })
       ]);
 
-      const toggle = el("button", {
-        class: "icon-btn",
-        type: "button",
-        text: it.isPaid ? "OK" : "..."
-      });
+      const toggle = el("button", { class: "icon-btn", type: "button", text: it.isPaid ? "OK" : "..." });
       toggle.addEventListener("click", async () => {
         await store.updateItem(it.id, { isPaid: !it.isPaid });
         if (!store.state.error) repaint();
@@ -229,9 +223,160 @@ export async function renderHomePage(root, router) {
         if (!store.state.error) repaint();
       });
 
+      const right = el("div", { class: "right" }, [badgeForPaid(it.isPaid), toggle, edit, del]);
+      const row = el("div", { class: "row" }, [left, right]);
+      list.appendChild(row);
+    }
+
+    listArea.appendChild(list);
+    listArea.appendChild(el("div", { style: "height:10px" }));
+    listArea.appendChild(addBtn);
+  }
+
+  // ===== Shopping (Compras) =====
+  function openAddShoppingModal() {
+    const nm = input({ placeholder: "Ej: Pasta" });
+    const qty = input({ placeholder: "Ej: 5", inputMode: "numeric" });
+
+    const content = el("div", {}, [
+      el("form", { class: "form" }, [
+        field("Producto", nm),
+        field("Cantidad total del mes", qty, "Ej: 5 (se van marcando compras parciales)"),
+        el("div", { class: "modal-actions" }, [
+          button("Cancelar", { variant: "ghost", onClick: () => modal.close() }),
+          button("Guardar", { variant: "primary", type: "submit" })
+        ])
+      ])
+    ]);
+
+    content.querySelector("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const targetQty = Math.trunc(Number(qty.value));
+      await store.addShoppingItem({ name: nm.value, targetQty });
+      if (!store.state.error) {
+        modal.close();
+        repaint();
+      }
+    });
+
+    const modal = createModal({ title: "Agregar producto", content, onClose: () => {} });
+    modal.open();
+  }
+
+  function openEditShoppingModal(item) {
+    const nm = input({ value: item.name, placeholder: "Producto" });
+    const qty = input({ value: String(item.targetQty), inputMode: "numeric", placeholder: "Cantidad total" });
+
+    const content = el("div", {}, [
+      el("form", { class: "form" }, [
+        field("Producto", nm),
+        field("Cantidad total del mes", qty, "Si bajás la cantidad total por debajo de lo ya comprado, se ajusta automáticamente."),
+        el("div", { class: "modal-actions" }, [
+          button("Cancelar", { variant: "ghost", onClick: () => modal.close() }),
+          button("Guardar", { variant: "primary", type: "submit" })
+        ])
+      ])
+    ]);
+
+    content.querySelector("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const targetQty = Math.trunc(Number(qty.value));
+      await store.updateShoppingItem(item.id, { name: nm.value, targetQty });
+      if (!store.state.error) {
+        modal.close();
+        repaint();
+      }
+    });
+
+    const modal = createModal({ title: "Editar producto", content, onClose: () => {} });
+    modal.open();
+  }
+
+  function openPurchaseModal(item) {
+    const remaining = Math.max(0, item.targetQty - item.purchasedQty);
+    const delta = input({ placeholder: `Ej: 2 (faltan ${remaining})`, inputMode: "numeric" });
+
+    const content = el("div", {}, [
+      el("form", { class: "form" }, [
+        field("Comprar ahora (cantidad)", delta, `Compradas: ${item.purchasedQty} de ${item.targetQty}. Faltan: ${remaining}.`),
+        el("div", { class: "modal-actions" }, [
+          button("Cancelar", { variant: "ghost", onClick: () => modal.close() }),
+          button("Registrar", { variant: "primary", type: "submit" })
+        ])
+      ])
+    ]);
+
+    content.querySelector("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const d = Math.trunc(Number(delta.value));
+      await store.recordPurchase(item.id, d);
+      if (!store.state.error) {
+        modal.close();
+        repaint();
+      }
+    });
+
+    const modal = createModal({ title: "Registrar compra", content, onClose: () => {} });
+    modal.open();
+  }
+
+  function renderShopping() {
+    shoppingArea.innerHTML = "";
+
+    const st = store.state;
+    const items = st.shoppingItems || [];
+
+    const head = el("div", { class: "section-title" }, [
+      el("h2", { text: "Listado de compras" }),
+      el("small", { text: `${items.length} productos` })
+    ]);
+
+    const addBtn = button("Agregar producto", { variant: "primary wide", onClick: openAddShoppingModal });
+
+    shoppingArea.appendChild(head);
+
+    if (!st.loading && items.length === 0) {
+      shoppingArea.appendChild(notice("Todavía no hay productos. Agregá uno (con cantidad total) y marcá compras parciales."));
+      shoppingArea.appendChild(el("div", { style: "height:10px" }));
+      shoppingArea.appendChild(addBtn);
+      return;
+    }
+
+    const list = el("div", { class: "list" });
+
+    for (const it of items) {
+      const remaining = Math.max(0, it.targetQty - it.purchasedQty);
+      const done = remaining === 0 && it.targetQty > 0;
+
+      const left = el("div", { class: "left" }, [
+        el("div", { class: "name", text: it.name }),
+        el("div", { class: "meta", text: `Compradas: ${it.purchasedQty} / ${it.targetQty} · Faltan: ${remaining}` })
+      ]);
+
+      const plus1 = el("button", { class: "icon-btn", type: "button", text: "+1" });
+      plus1.addEventListener("click", async () => {
+        await store.recordPurchase(it.id, 1);
+        if (!store.state.error) repaint();
+      });
+
+      const buyN = el("button", { class: "icon-btn", type: "button", text: "Buy" });
+      buyN.addEventListener("click", () => openPurchaseModal(it));
+
+      const edit = el("button", { class: "icon-btn", type: "button", text: "Edit" });
+      edit.addEventListener("click", () => openEditShoppingModal(it));
+
+      const del = el("button", { class: "icon-btn", type: "button", text: "Del" });
+      del.addEventListener("click", async () => {
+        const yes = confirm(`Eliminar "${it.name}"?`);
+        if (!yes) return;
+        await store.removeShoppingItem(it.id);
+        if (!store.state.error) repaint();
+      });
+
       const right = el("div", { class: "right" }, [
-        badgeForPaid(it.isPaid),
-        toggle,
+        badgeForShopping(done),
+        plus1,
+        buyN,
         edit,
         del
       ]);
@@ -240,10 +385,9 @@ export async function renderHomePage(root, router) {
       list.appendChild(row);
     }
 
-    listArea.appendChild(list);
-    listArea.appendChild(el("div", { style: "height:10px" }));
-    listArea.appendChild(addBtn);
-    listArea.appendChild(el("div", { class: "footer-space" }));
+    shoppingArea.appendChild(list);
+    shoppingArea.appendChild(el("div", { style: "height:10px" }));
+    shoppingArea.appendChild(addBtn);
   }
 
   function repaint() {
@@ -251,8 +395,9 @@ export async function renderHomePage(root, router) {
     renderState();
     renderKpis();
     renderList();
+    shoppingArea.appendChild(el("hr", { class: "sep" }));
+    renderShopping();
 
-    // Mensajes del store como toast no intrusivo
     const st = store.state;
     if (st.info) showToast(st.info);
   }
@@ -265,10 +410,10 @@ export async function renderHomePage(root, router) {
   wrapper.appendChild(dailyArea);
   wrapper.appendChild(el("hr", { class: "sep" }));
   wrapper.appendChild(listArea);
+  wrapper.appendChild(shoppingArea);
 
   root.appendChild(wrapper);
 
-  // Carga inicial
   if (!store.state.household) {
     await store.loadHouseholdAndItems({ forceResetCheck: true });
   }
