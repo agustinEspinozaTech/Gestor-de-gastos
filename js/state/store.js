@@ -31,6 +31,28 @@ function clampInt(n, min, max) {
   return Math.min(max, Math.max(min, x));
 }
 
+function sortExpenses(arr) {
+  // Pendiente primero: isPaid=false
+  return [...arr].sort((a, b) => {
+    const ap = a.isPaid ? 1 : 0;
+    const bp = b.isPaid ? 1 : 0;
+    if (ap !== bp) return ap - bp;
+    return a.name.localeCompare(b.name, "es");
+  });
+}
+
+function sortShopping(arr) {
+  // Pendiente primero: purchasedQty < targetQty (y targetQty > 0)
+  const isDone = (x) => (x.targetQty > 0) && (x.purchasedQty >= x.targetQty);
+
+  return [...arr].sort((a, b) => {
+    const ad = isDone(a) ? 1 : 0;
+    const bd = isDone(b) ? 1 : 0;
+    if (ad !== bd) return ad - bd;
+    return a.name.localeCompare(b.name, "es");
+  });
+}
+
 class Store {
   constructor() {
     this.listeners = new Set();
@@ -234,23 +256,25 @@ class Store {
       const fItems = `{householdCode}='${escapeAirtableString(householdCode)}'`;
       const itemsRecs = await listRecords("Items", fItems, { maxRecords: 200 });
 
-      const items = itemsRecs.map(r => ({
+      const items = sortExpenses(itemsRecs.map(r => ({
         id: r.id,
         householdCode: String(r.fields?.householdCode || householdCode),
         name: String(r.fields?.name || ""),
         amount: Math.trunc(Number(r.fields?.amount || 0)),
         isPaid: !!r.fields?.isPaid
-      })).sort((a, b) => a.name.localeCompare(b.name, "es"));
+      })));
 
       // Traer ShoppingItems (compras)
       const shoppingRecs = await listRecords("ShoppingItems", fItems, { maxRecords: 200 });
-      const shoppingItems = shoppingRecs.map(r => ({
+
+      const shoppingItems = sortShopping(shoppingRecs.map(r => ({
         id: r.id,
         householdCode: String(r.fields?.householdCode || householdCode),
         name: String(r.fields?.name || ""),
         targetQty: Math.trunc(Number(r.fields?.targetQty || 0)),
         purchasedQty: Math.trunc(Number(r.fields?.purchasedQty || 0))
-      })).sort((a, b) => a.name.localeCompare(b.name, "es"));
+      })));
+
 
       this.setState({ household, items, shoppingItems });
     } catch (e) {
@@ -306,7 +330,7 @@ class Store {
         isPaid: false
       };
 
-      this.setState({ items: [newItem, ...this.state.items].sort((a, b) => a.name.localeCompare(b.name, "es")) });
+      this.setState({ items: sortExpenses([newItem, ...this.state.items]) });
       this.setInfo("Ítem agregado.");
     } catch (e) {
       this.setError(e.message || "No se pudo agregar el ítem.");
@@ -334,7 +358,8 @@ class Store {
         };
       }).sort((a, b) => a.name.localeCompare(b.name, "es"));
 
-      this.setState({ items });
+      this.setState({ items: sortExpenses(items) });
+
       this.setInfo("Cambios guardados.");
     } catch (e) {
       this.setError(e.message || "No se pudo actualizar el ítem.");
