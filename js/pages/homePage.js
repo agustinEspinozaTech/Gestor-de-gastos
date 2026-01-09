@@ -42,6 +42,14 @@ export async function renderHomePage(root, router) {
     }
   });
 
+  const btnShopping = button("Lista de compras", {
+    variant: "ghost",
+    onClick: () => {
+      const target = document.getElementById("shopping-section");
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+
   const btnLogout = button("Cerrar sesión", {
     variant: "danger",
     onClick: async () => {
@@ -51,7 +59,9 @@ export async function renderHomePage(root, router) {
   });
 
   right.appendChild(btnRefresh);
+  right.appendChild(btnShopping);
   right.appendChild(btnLogout);
+
 
   top.appendChild(left);
   top.appendChild(right);
@@ -60,7 +70,7 @@ export async function renderHomePage(root, router) {
   const kpisArea = el("div", { class: "grid cols-2" });
   const dailyArea = el("div");
   const listArea = el("div");
-  const shoppingArea = el("div");
+  const shoppingArea = el("div", { id: "shopping-section" });
 
   function renderHeaderInfo() {
     const sess = store.getSession();
@@ -144,7 +154,7 @@ export async function renderHomePage(root, router) {
       }
     });
 
-    const modal = createModal({ title: "Agregar ítem", content, onClose: () => {} });
+    const modal = createModal({ title: "Agregar ítem", content, onClose: () => { } });
     modal.open();
   }
 
@@ -172,7 +182,7 @@ export async function renderHomePage(root, router) {
       }
     });
 
-    const modal = createModal({ title: "Editar ítem", content, onClose: () => {} });
+    const modal = createModal({ title: "Editar ítem", content, onClose: () => { } });
     modal.open();
   }
 
@@ -259,7 +269,7 @@ export async function renderHomePage(root, router) {
       }
     });
 
-    const modal = createModal({ title: "Agregar producto", content, onClose: () => {} });
+    const modal = createModal({ title: "Agregar producto", content, onClose: () => { } });
     modal.open();
   }
 
@@ -288,7 +298,7 @@ export async function renderHomePage(root, router) {
       }
     });
 
-    const modal = createModal({ title: "Editar producto", content, onClose: () => {} });
+    const modal = createModal({ title: "Editar producto", content, onClose: () => { } });
     modal.open();
   }
 
@@ -316,7 +326,7 @@ export async function renderHomePage(root, router) {
       }
     });
 
-    const modal = createModal({ title: "Registrar compra", content, onClose: () => {} });
+    const modal = createModal({ title: "Registrar compra", content, onClose: () => { } });
     modal.open();
   }
 

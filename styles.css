@@ -2,6 +2,7 @@
   Responsabilidad: estilos globales mobile-first, paleta pastel, componentes básicos.
   Sin librerías externas.
 */
+html { scroll-behavior: smooth; }
 
 :root{
   --bg: #f7f8ff;
