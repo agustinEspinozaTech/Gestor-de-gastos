@@ -6,6 +6,11 @@ html {
   scroll-behavior: smooth;
 }
 
+body {
+  overflow-x: hidden;
+}
+
+
 :root {
   --bg: #f7f8ff;
   --card: #ffffff;
@@ -442,6 +447,32 @@ hr.sep {
   padding: 6px 10px;
   border-radius: 10px;
 }
+
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  /* clave: permite bajar a otra línea */
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  /* clave: botones pueden bajar */
+  justify-content: flex-end;
+}
+
+.actions .btn {
+  white-space: nowrap;
+  /* no partir texto del botón */
+}
+
 
 /* Loading skeleton */
 .skel {
