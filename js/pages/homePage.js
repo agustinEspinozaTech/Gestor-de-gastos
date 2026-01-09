@@ -91,6 +91,8 @@ export async function renderHomePage(root, router) {
 
     const { total, pending, daysLeft, dailyBase, dailyAdjustment, dailyRemaining } = store.computeTotals();
 
+    const totalFaltanteMes = pending + dailyRemaining;
+
     const k1 = card([
       el("div", { class: "kpi" }, [
         el("div", { class: "label", text: "Total del mes" }),
@@ -101,7 +103,7 @@ export async function renderHomePage(root, router) {
 
     const k2 = card([
       el("div", { class: "kpi" }, [
-        el("div", { class: "label", text: "Pendiente" }),
+        el("div", { class: "label", text: "Gasto fijos" }),
         el("div", { class: "value", text: formatARSWithPrefix(pending) }),
         el("div", { class: "hint", text: "Solo pendientes" })
       ])
@@ -115,6 +117,15 @@ export async function renderHomePage(root, router) {
       ])
     ]);
 
+    const k4 = el("div", { class: "card warn" }, [
+      el("div", { class: "kpi" }, [
+        el("div", { class: "label", text: "Pendiente total por pagar" }),
+        el("div", { class: "value", text: formatARSWithPrefix(totalFaltanteMes) }),
+        el("div", { class: "hint", text: "Pendiente + Diario restante" })
+      ])
+    ]);
+
+
     const btnDaily = button("Editar diario", {
       variant: "good wide",
       onClick: () => router.navigate("/daily")
@@ -123,7 +134,10 @@ export async function renderHomePage(root, router) {
     dailyArea.innerHTML = "";
     dailyArea.appendChild(k3);
     dailyArea.appendChild(el("div", { style: "height:10px" }));
+    dailyArea.appendChild(k4);
+    dailyArea.appendChild(el("div", { style: "height:10px" }));
     dailyArea.appendChild(btnDaily);
+
 
     kpisArea.appendChild(k1);
     kpisArea.appendChild(k2);
